@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-//#region src/hooks/post-commit.ts
+//#region ../../agentmemory/src/hooks/post-commit.ts
 const exec = promisify(execFile);
 function isSdkChildContext(payload) {
 	if (process.env["AGENTMEMORY_SDK_CHILD"] === "1") return true;
