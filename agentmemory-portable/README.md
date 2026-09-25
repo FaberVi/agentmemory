@@ -5,6 +5,9 @@ upstream. Questa cartella fa parte del progetto e si puo pushare su git.
 
 Il kit e un wrapper del CLI ufficiale (v0.9.29+): SQLite in `data\` tramite
 `AGENTMEMORY_DATA_DIR`, config engine = `iii-config.yaml` del repo padre.
+iii-engine e' pinnato a **v0.22.1** (stesso pin di `iii-sdk`). Se il kit era
+stato installato con v0.11.2, rilancia `setup.cmd` o `update.cmd`: lo script
+sostituisce `iii.exe` quando il file `iii.version` non coincide col pin.
 
 ## Posizione
 

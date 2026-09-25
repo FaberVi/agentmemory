@@ -50,27 +50,9 @@ Assert-NodePresent
 $env:PATH = "$NodeDir;$env:PATH"
 $env:npm_config_cache = Join-Path $PortableDir "npm-cache"
 
-# --- iii-engine ---
+# --- iii-engine (re-downloads when the stamp does not match the pin) ---
 if (-not $SkipIiiDownload) {
-  if (Test-Path $IiiExe) {
-    Write-KitInfo "iii.exe already present: $IiiExe"
-  }
-  else {
-    $iiiZipName = "iii-x86_64-pc-windows-msvc.zip"
-    $iiiUrl = "https://github.com/iii-hq/iii/releases/download/iii/v$iiiVersion/$iiiZipName"
-    $iiiZip = Join-Path $DownloadsDir $iiiZipName
-    Write-KitInfo "Downloading iii-engine v$iiiVersion ..."
-    Invoke-WebRequest -Uri $iiiUrl -OutFile $iiiZip -UseBasicParsing
-    $iiiExtract = Join-Path $DownloadsDir "iii-extract"
-    if (Test-Path $iiiExtract) { Remove-Item -Recurse -Force $iiiExtract }
-    Expand-Archive -Path $iiiZip -DestinationPath $iiiExtract -Force
-    $found = Get-ChildItem -Path $iiiExtract -Filter "iii.exe" -Recurse | Select-Object -First 1
-    if (-not $found) { throw "iii.exe not found in downloaded zip" }
-    Copy-Item -Path $found.FullName -Destination $IiiExe -Force
-    Copy-Item -Path $found.FullName -Destination (Join-Path $PortableDir "iii.exe") -Force
-    Remove-Item -Recurse -Force $iiiExtract -ErrorAction SilentlyContinue
-    Write-KitInfo "iii.exe installed at $IiiExe"
-  }
+  Install-PinnedIiiEngine -Version $iiiVersion
 }
 
 Assert-IiiPresent

@@ -40,6 +40,7 @@ if (-not $SkipPull) {
 }
 
 $cfg = Get-KitConfig
+Install-PinnedIiiEngine -Version $cfg.IiiVersion
 $env:AGENTMEMORY_III_VERSION = $cfg.IiiVersion
 
 Write-KitInfo "npm install ..."
@@ -47,16 +48,5 @@ Write-KitInfo "npm install ..."
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Invoke-RepoBuild
-
-if (-not (Test-Path $IiiExe)) {
-  $portableIii = Join-Path $PortableDir "iii.exe"
-  if (Test-Path $portableIii) {
-    Copy-Item $portableIii $IiiExe -Force
-    Write-KitInfo "Restored iii.exe to $IiiExe"
-  }
-  else {
-    Write-KitWarn "iii.exe missing - re-run setup.cmd to download it"
-  }
-}
 
 Write-KitInfo "Update complete. Restart with stop.cmd then start.cmd"

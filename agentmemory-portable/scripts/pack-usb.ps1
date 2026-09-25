@@ -17,6 +17,7 @@ if (-not $InTree) {
 }
 
 Assert-NodePresent
+Install-PinnedIiiEngine -Version (Get-KitConfig).IiiVersion
 Assert-IiiPresent
 
 if ($Rebuild) {

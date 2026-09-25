@@ -22,7 +22,7 @@ $script:RealLocalAppData = $env:LOCALAPPDATA
 $script:RealTemp = $env:TEMP
 $script:RealTmp = $env:TMP
 
-$script:PinnedIiiVersion = "0.11.2"
+$script:PinnedIiiVersion = "0.22.1"
 $script:PinnedNodeVersion = "22.16.0"
 $script:DefaultRepoUrl = "https://github.com/rohitg00/agentmemory.git"
 
@@ -105,6 +105,54 @@ function Assert-IiiPresent {
     Write-KitError "Esegui prima setup.cmd"
     exit 1
   }
+}
+
+function Install-PinnedIiiEngine {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Version
+  )
+
+  [void](Ensure-KitRuntimeDirs -TargetKitRoot $KitRoot)
+  $stampPath = Join-Path $IiiBinDir "iii.version"
+  $backup = Join-Path $PortableDir "iii.exe"
+  $installed = ""
+  if (Test-Path -LiteralPath $stampPath) {
+    $installed = (Get-Content -LiteralPath $stampPath -Raw).Trim()
+  }
+
+  if ((Test-Path -LiteralPath $IiiExe) -and ($installed -eq $Version)) {
+    Write-KitInfo "iii.exe already present: $IiiExe (v$Version)"
+    if (-not (Test-Path -LiteralPath $backup)) {
+      Copy-Item -LiteralPath $IiiExe -Destination $backup -Force
+    }
+    return
+  }
+
+  if (Test-Path -LiteralPath $IiiExe) {
+    if ($installed) {
+      Write-KitWarn "iii.exe is v$installed; pinned v$Version - replacing"
+    }
+    else {
+      Write-KitWarn "iii.exe has no version stamp; replacing with pinned v$Version"
+    }
+  }
+
+  $iiiZipName = "iii-x86_64-pc-windows-msvc.zip"
+  $iiiUrl = "https://github.com/iii-hq/iii/releases/download/iii/v$Version/$iiiZipName"
+  $iiiZip = Join-Path $DownloadsDir $iiiZipName
+  Write-KitInfo "Downloading iii-engine v$Version ..."
+  Invoke-WebRequest -Uri $iiiUrl -OutFile $iiiZip -UseBasicParsing
+  $iiiExtract = Join-Path $DownloadsDir "iii-extract"
+  if (Test-Path $iiiExtract) { Remove-Item -Recurse -Force $iiiExtract }
+  Expand-Archive -Path $iiiZip -DestinationPath $iiiExtract -Force
+  $found = Get-ChildItem -Path $iiiExtract -Filter "iii.exe" -Recurse | Select-Object -First 1
+  if (-not $found) { throw "iii.exe not found in downloaded zip" }
+  Copy-Item -LiteralPath $found.FullName -Destination $IiiExe -Force
+  Copy-Item -LiteralPath $found.FullName -Destination $backup -Force
+  Set-Content -LiteralPath $stampPath -Value $Version -Encoding ascii -NoNewline
+  Remove-Item -Recurse -Force $iiiExtract -ErrorAction SilentlyContinue
+  Write-KitInfo "iii.exe installed at $IiiExe (v$Version)"
 }
 
 function Assert-UsbDataLayout {
@@ -421,6 +469,16 @@ function Seed-FreshKitRuntime {
     $portableBackup = Join-Path $layout.PortableDir "iii.exe"
     if (-not (Test-Path $portableBackup)) {
       Copy-Item -LiteralPath $resolvedIii -Destination $portableBackup -Force
+    }
+    $destStamp = Join-Path $layout.IiiBinDir "iii.version"
+    if (-not (Test-Path -LiteralPath $destStamp)) {
+      $sourceStamp = Join-Path (Split-Path -Parent $resolvedIii) "iii.version"
+      if (-not (Test-Path -LiteralPath $sourceStamp)) {
+        $sourceStamp = Join-Path $IiiBinDir "iii.version"
+      }
+      if (Test-Path -LiteralPath $sourceStamp) {
+        Copy-Item -LiteralPath $sourceStamp -Destination $destStamp -Force
+      }
     }
   }
 
