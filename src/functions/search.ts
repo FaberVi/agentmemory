@@ -1,4 +1,4 @@
-import type { ISdk } from 'iii-sdk'
+import type { IIIClient } from 'iii-sdk'
 import type { CompactSearchResult, CompressedObservation, Memory, SearchResult, Session } from '../types.js'
 import { KV } from '../state/schema.js'
 import { StateKV } from '../state/kv.js'
@@ -305,7 +305,35 @@ export async function indexRecords(
     count++
   }
   await flush()
+  if (count > 0) scheduleIndexSave()
   return count
+}
+
+export async function findUnindexedObservations(
+  kv: StateKV,
+): Promise<{ sessions: number; missing: CompressedObservation[] }> {
+  const idx = getSearchIndex()
+  const sessions = await kv.list<Session>(KV.sessions)
+  const indexed = idx.observationCountsBySession()
+  const missing: CompressedObservation[] = []
+  for (const session of sessions) {
+    const known = session.observationCount ?? 0
+    if (known > 0 && known <= (indexed.get(session.id) ?? 0)) continue
+    const observations = await kv.list<CompressedObservation>(KV.observations(session.id))
+    for (const obs of observations) {
+      if (!obs.title || !obs.narrative || idx.has(obs.id)) continue
+      missing.push(obs)
+    }
+  }
+  return { sessions: sessions.length, missing }
+}
+
+export async function reconcileIndex(kv: StateKV): Promise<number> {
+  const idx = getSearchIndex()
+  const { missing } = await findUnindexedObservations(kv)
+  const stillMissing = missing.filter((obs) => !idx.has(obs.id))
+  if (stillMissing.length === 0) return 0
+  return indexRecords(stillMissing, [])
 }
 
 export async function rebuildIndex(kv: StateKV): Promise<number> {
@@ -365,7 +393,7 @@ export async function rebuildIndex(kv: StateKV): Promise<number> {
   return indexed
 }
 
-export function registerSearchFunction(sdk: ISdk, kv: StateKV): void {
+export function registerSearchFunction(sdk: IIIClient, kv: StateKV): void {
   sdk.registerFunction(
     'mem::search',
     async (data: {
