@@ -178,12 +178,10 @@ function Clear-KitRuntimeState {
     }
   }
 
+  $rootPrefix = ($KitRoot.TrimEnd('\') + '\')
   Get-Process -ErrorAction SilentlyContinue |
     Where-Object {
-      $_.Path -and (
-        $_.Path -like "*\agentmemory-portable\*" -or
-        $_.Path -like "*\home\.agentmemory\bin\iii.exe"
-      )
+      $_.Path -and $_.Path.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
     } |
     ForEach-Object {
       Write-KitInfo "  stopping leftover $($_.ProcessName) pid $($_.Id)"
@@ -524,6 +522,87 @@ function Seed-FreshKitRuntime {
   }
 
   return $layout
+}
+
+function Get-KitNormalizedPath {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path
+  )
+  return [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+}
+
+function Test-EnvContainsPopulatedApiKey {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$LiteralPath
+  )
+  if (-not (Test-Path -LiteralPath $LiteralPath)) { return $false }
+  $raw = Get-Content -LiteralPath $LiteralPath -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+  if (-not $raw) { return $false }
+  return [bool]($raw -match "(?m)^\s*(?:ANTHROPIC|OPENAI|GEMINI|OPENROUTER|MINIMAX|GOOGLE)_API_KEY\s*=\s*\S+")
+}
+
+function Assert-EnvExampleSafeForPack {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$EnvExamplePath
+  )
+  if (Test-EnvContainsPopulatedApiKey -LiteralPath $EnvExamplePath) {
+    Write-KitError "`.env.example` contiene una API key valorizzata: $EnvExamplePath"
+    Write-KitError "Rimuovi i segreti prima di pack-usb (il pacchetto USB non deve esporre credenziali)."
+    exit 1
+  }
+}
+
+function Assert-PackOutputDirSafe {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$CandidateOutputDir
+  )
+
+  $out = Get-KitNormalizedPath -Path $CandidateOutputDir
+  $allowedOutRoot = Get-KitNormalizedPath -Path (Join-Path $KitRoot "out")
+  $repo = Get-KitNormalizedPath -Path $RepoDir
+  $kit = Get-KitNormalizedPath -Path $KitRoot
+
+  $protected = @(
+    $repo,
+    $kit,
+    (Get-KitNormalizedPath -Path $DataDir),
+    (Get-KitNormalizedPath -Path $HomeDir),
+    (Get-KitNormalizedPath -Path $AgentmemoryHome),
+    (Get-KitNormalizedPath -Path $PortableDir)
+  )
+
+  foreach ($p in $protected) {
+    if ($out.Equals($p, [System.StringComparison]::OrdinalIgnoreCase)) {
+      Write-KitError "Output non consentito (percorso protetto): $out"
+      exit 1
+    }
+    if ($p.StartsWith($out + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+      Write-KitError "Output non consentito (cancellerebbe dati o sorgenti): $out"
+      exit 1
+    }
+  }
+
+  if ($out.StartsWith($kit + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    $underKitOut = $out.Equals($allowedOutRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+      $out.StartsWith($allowedOutRoot + '\', [System.StringComparison]::OrdinalIgnoreCase)
+    if (-not $underKitOut) {
+      Write-KitError "Output dentro il kit consentito solo sotto: $allowedOutRoot"
+      exit 1
+    }
+  }
+
+  if ($out.StartsWith($repo + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+    $underKitOut = $out.StartsWith($allowedOutRoot + '\', [System.StringComparison]::OrdinalIgnoreCase) -or
+      $out.Equals($allowedOutRoot, [System.StringComparison]::OrdinalIgnoreCase)
+    if (-not $underKitOut) {
+      Write-KitError "Output dentro il repository consentito solo sotto agentmemory-portable\out\"
+      exit 1
+    }
+  }
 }
 
 function ConvertTo-PackRelativePath([string]$Path) {

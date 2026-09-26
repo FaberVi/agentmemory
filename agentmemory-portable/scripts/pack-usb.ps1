@@ -41,6 +41,13 @@ if (-not (Test-Path $IiiConfigPath)) {
 if (-not $OutputDir) {
   $OutputDir = Join-Path $KitRoot "out\agentmemory-usb"
 }
+$OutputDir = Get-KitNormalizedPath -Path $OutputDir
+Assert-PackOutputDirSafe -CandidateOutputDir $OutputDir
+
+$envExample = Join-Path $RepoDir ".env.example"
+if (Test-Path -LiteralPath $envExample) {
+  Assert-EnvExampleSafeForPack -EnvExamplePath $envExample
+}
 
 if (Test-Path $OutputDir) {
   if (-not $Force) {
@@ -185,9 +192,9 @@ function Assert-PackComplete {
     throw "Pack Runtime non deve contenere la cartella .git"
   }
 
-  $seedEnv = Get-Content -LiteralPath (Join-Path $StagingRoot "agentmemory-portable\home\.agentmemory\.env") -Raw -ErrorAction SilentlyContinue
-  if ($seedEnv -match "(?m)^\s*(?:ANTHROPIC|OPENAI|GEMINI|OPENROUTER|MINIMAX|GOOGLE)_API_KEY\s*=\s*\S+") {
-    Write-KitWarn "seed .env contiene una API key; controlla .env.example"
+  $seedEnvPath = Join-Path $StagingRoot "agentmemory-portable\home\.agentmemory\.env"
+  if (Test-EnvContainsPopulatedApiKey -LiteralPath $seedEnvPath) {
+    throw "Pack rifiutato: seed .env contiene una API key (controlla .env.example e home\.agentmemory\.env)"
   }
 }
 
