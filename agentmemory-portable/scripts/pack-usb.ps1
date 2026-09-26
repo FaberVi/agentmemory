@@ -1,4 +1,4 @@
-# Build a runtime-only USB tree: out\agentmemory-usb\ (in-tree layout, fresh data).
+﻿# Build a runtime-only USB tree: out\agentmemory-usb\ (in-tree layout, fresh data).
 param(
   [ValidateSet("Runtime")]
   [string]$Profile = "Runtime",
@@ -63,6 +63,10 @@ New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 $stagingKit = Join-Path $OutputDir "agentmemory-portable"
 New-Item -ItemType Directory -Force -Path $stagingKit | Out-Null
 
+<#
+.SYNOPSIS
+    Copies one file into the USB pack staging tree.
+#>
 function Copy-FileToStaging {
   param(
     [string]$Source,
@@ -147,6 +151,10 @@ finally {
   Set-Location $prevLoc
 }
 
+<#
+.SYNOPSIS
+    Validates required layout and rejects staged env files with API keys.
+#>
 function Assert-PackComplete {
   param([string]$StagingRoot)
 

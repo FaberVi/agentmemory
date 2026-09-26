@@ -1,4 +1,4 @@
-# Shared environment for the agentmemory USB portable kit.
+﻿# Shared environment for the agentmemory USB portable kit.
 # Dot-source from other scripts: . "$PSScriptRoot\_env.ps1"
 
 $ErrorActionPreference = "Stop"
@@ -29,6 +29,10 @@ $script:DefaultRepoUrl = "https://github.com/rohitg00/agentmemory.git"
 # Layout:
 # - in-tree: kit lives at <repo>/agentmemory-portable (pushable with the project)
 # - nested:  standalone USB folder with its own repo\ clone
+<#
+.SYNOPSIS
+    Returns whether the kit lives inside an agentmemory repository clone.
+#>
 function Test-InTreeLayout {
   $parent = Join-Path $KitRoot ".."
   $pkg = Join-Path $parent "package.json"
@@ -50,18 +54,34 @@ if ($InTree) {
 $script:CliEntry = Join-Path $RepoDir "dist\cli.mjs"
 $script:IiiConfigPath = Join-Path $RepoDir "iii-config.yaml"
 
+<#
+.SYNOPSIS
+    Writes an informational message for kit scripts.
+#>
 function Write-KitInfo([string]$Message) {
   Write-Host "[agentmemory-portable] $Message" -ForegroundColor Cyan
 }
 
+<#
+.SYNOPSIS
+    Writes a warning message for kit scripts.
+#>
 function Write-KitWarn([string]$Message) {
   Write-Host "[agentmemory-portable] $Message" -ForegroundColor Yellow
 }
 
+<#
+.SYNOPSIS
+    Writes an error message for kit scripts.
+#>
 function Write-KitError([string]$Message) {
   Write-Host "[agentmemory-portable] $Message" -ForegroundColor Red
 }
 
+<#
+.SYNOPSIS
+    Loads kit.config.ps1 overrides merged with default pins.
+#>
 function Get-KitConfig {
   $cfgPath = Join-Path $KitRoot "kit.config.ps1"
   $cfg = [ordered]@{
@@ -78,6 +98,10 @@ function Get-KitConfig {
   return $cfg
 }
 
+<#
+.SYNOPSIS
+    Exits when portable Node is not installed under the kit.
+#>
 function Assert-NodePresent {
   if (-not (Test-Path $NodeExe)) {
     Write-KitError "Node portatile non trovato: $NodeExe"
@@ -86,6 +110,10 @@ function Assert-NodePresent {
   }
 }
 
+<#
+.SYNOPSIS
+    Exits when the repository or dist CLI build is missing.
+#>
 function Assert-RepoBuilt {
   if (-not (Test-Path $RepoDir)) {
     Write-KitError "Repo assente: $RepoDir"
@@ -99,6 +127,10 @@ function Assert-RepoBuilt {
   }
 }
 
+<#
+.SYNOPSIS
+    Exits when iii.exe is missing from the kit home bin directory.
+#>
 function Assert-IiiPresent {
   if (-not (Test-Path $IiiExe)) {
     Write-KitError "iii.exe non trovato: $IiiExe"
@@ -107,6 +139,10 @@ function Assert-IiiPresent {
   }
 }
 
+<#
+.SYNOPSIS
+    Downloads or refreshes iii.exe to match the configured pin.
+#>
 function Install-PinnedIiiEngine {
   param(
     [Parameter(Mandatory = $true)]
@@ -155,6 +191,10 @@ function Install-PinnedIiiEngine {
   Write-KitInfo "iii.exe installed at $IiiExe (v$Version)"
 }
 
+<#
+.SYNOPSIS
+    Ensures kit data directory and bundled iii-config.yaml exist.
+#>
 function Assert-UsbDataLayout {
   if (-not (Test-Path $DataDir)) {
     New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
@@ -168,6 +208,10 @@ function Assert-UsbDataLayout {
 
 $script:KitPorts = @(3111, 3112, 3113, 49134)
 
+<#
+.SYNOPSIS
+    Removes stale pid files and stops processes running from KitRoot.
+#>
 function Clear-KitRuntimeState {
   Write-KitInfo "Cleaning leftover kit processes / pid files under home\.agentmemory ..."
   foreach ($name in @("iii.pid", "worker.pid", "engine-state.json")) {
@@ -189,6 +233,10 @@ function Clear-KitRuntimeState {
     }
 }
 
+<#
+.SYNOPSIS
+    Returns whether a TCP port accepts connections on 127.0.0.1.
+#>
 function Test-LocalPortOpen {
   param([int]$Port)
 
@@ -207,6 +255,10 @@ function Test-LocalPortOpen {
   }
 }
 
+<#
+.SYNOPSIS
+    Lists processes listening on a local TCP port.
+#>
 function Get-ListenOwners {
   param([int]$Port)
 
@@ -235,6 +287,10 @@ function Get-ListenOwners {
   return $owners
 }
 
+<#
+.SYNOPSIS
+    Prints port conflict guidance and exits with an error code.
+#>
 function Show-PortIncompatibility {
   param(
     [object[]]$Owners
@@ -263,6 +319,10 @@ function Show-PortIncompatibility {
   try { [void][System.Console]::ReadLine() } catch { Start-Sleep -Seconds 5 }
 }
 
+<#
+.SYNOPSIS
+    Clears kit runtime state and requires kit ports to be available.
+#>
 function Assert-KitPortsFree {
   Clear-KitRuntimeState
   Start-Sleep -Milliseconds 400
@@ -277,6 +337,10 @@ function Assert-KitPortsFree {
   exit 1
 }
 
+<#
+.SYNOPSIS
+    Remaps HOME and sets agentmemory environment for kit scripts.
+#>
 function Set-PortableRuntimeEnv {
   param(
     [switch]$ForDaemon
@@ -327,6 +391,10 @@ function Set-PortableRuntimeEnv {
   }
 }
 
+<#
+.SYNOPSIS
+    Runs the built CLI from the kit working directory.
+#>
 function Invoke-AgentmemoryCli {
   param(
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -342,6 +410,10 @@ function Invoke-AgentmemoryCli {
   return $LASTEXITCODE
 }
 
+<#
+.SYNOPSIS
+    Copies viewer and config files into dist after a Windows build.
+#>
 function Complete-WindowsBuildArtifacts {
   # package.json "build" uses Unix cp/mkdir/true; on Windows cmd that tail fails
   # after tsdown already wrote dist/. Copy the runtime assets the CLI expects.
@@ -368,6 +440,10 @@ function Complete-WindowsBuildArtifacts {
   }
 }
 
+<#
+.SYNOPSIS
+    Runs npm build and completes Windows-specific dist artifacts.
+#>
 function Invoke-RepoBuild {
   $npmCmd = Join-Path $NodeDir "npm.cmd"
   if (-not (Test-Path $npmCmd)) { throw "npm.cmd not found in portable Node: $npmCmd" }
@@ -384,6 +460,10 @@ function Invoke-RepoBuild {
   }
 }
 
+<#
+.SYNOPSIS
+    Returns standard runtime paths for a portable kit root.
+#>
 function Get-KitRuntimeLayout {
   param(
     [Parameter(Mandatory = $true)]
@@ -407,6 +487,10 @@ function Get-KitRuntimeLayout {
   }
 }
 
+<#
+.SYNOPSIS
+    Creates runtime directories for a portable kit root.
+#>
 function Ensure-KitRuntimeDirs {
   param(
     [Parameter(Mandatory = $true)]
@@ -437,6 +521,10 @@ function Ensure-KitRuntimeDirs {
   return $layout
 }
 
+<#
+.SYNOPSIS
+    Seeds data, env, preferences, and iii.exe for a fresh kit tree.
+#>
 function Seed-FreshKitRuntime {
   param(
     [Parameter(Mandatory = $true)]
@@ -524,6 +612,10 @@ function Seed-FreshKitRuntime {
   return $layout
 }
 
+<#
+.SYNOPSIS
+    Resolves a path to a full path without a trailing backslash.
+#>
 function Get-KitNormalizedPath {
   param(
     [Parameter(Mandatory = $true)]
@@ -532,6 +624,10 @@ function Get-KitNormalizedPath {
   return [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
 }
 
+<#
+.SYNOPSIS
+    Returns true when an env file contains a populated provider API key.
+#>
 function Test-EnvContainsPopulatedApiKey {
   param(
     [Parameter(Mandatory = $true)]
@@ -543,6 +639,10 @@ function Test-EnvContainsPopulatedApiKey {
   return [bool]($raw -match "(?m)^\s*(?:ANTHROPIC|OPENAI|GEMINI|OPENROUTER|MINIMAX|GOOGLE)_API_KEY\s*=\s*\S+")
 }
 
+<#
+.SYNOPSIS
+    Exits when .env.example contains populated API keys.
+#>
 function Assert-EnvExampleSafeForPack {
   param(
     [Parameter(Mandatory = $true)]
@@ -555,6 +655,10 @@ function Assert-EnvExampleSafeForPack {
   }
 }
 
+<#
+.SYNOPSIS
+    Exits when a pack output path would delete protected kit or repo data.
+#>
 function Assert-PackOutputDirSafe {
   param(
     [Parameter(Mandatory = $true)]
@@ -605,10 +709,18 @@ function Assert-PackOutputDirSafe {
   }
 }
 
+<#
+.SYNOPSIS
+    Normalizes a filesystem path for manifest entries.
+#>
 function ConvertTo-PackRelativePath([string]$Path) {
   return ($Path -replace '\\', '/').TrimStart('/')
 }
 
+<#
+.SYNOPSIS
+    Lists relative paths that receive SHA256 entries in the USB manifest.
+#>
 function Get-PackCriticalPaths {
   param(
     [Parameter(Mandatory = $true)]
@@ -644,6 +756,10 @@ function Get-PackCriticalPaths {
   return @($fixed | ForEach-Object { ConvertTo-PackRelativePath $_ } | Select-Object -Unique)
 }
 
+<#
+.SYNOPSIS
+    Computes a lowercase SHA256 hex digest for a file.
+#>
 function Get-FileSha256Lower {
   param(
     [Parameter(Mandatory = $true)]
@@ -652,6 +768,10 @@ function Get-FileSha256Lower {
   return (Get-FileHash -LiteralPath $LiteralPath -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+<#
+.SYNOPSIS
+    Verifies MANIFEST.json file hashes against the pack directory.
+#>
 function Test-UsbManifestIntegrity {
   param(
     [Parameter(Mandatory = $true)]
@@ -692,6 +812,10 @@ function Test-UsbManifestIntegrity {
   return $ok
 }
 
+<#
+.SYNOPSIS
+    Returns the total size in bytes of all files under a directory.
+#>
 function Get-DirectorySizeBytes {
   param(
     [Parameter(Mandatory = $true)]

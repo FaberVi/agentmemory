@@ -1,10 +1,14 @@
-# Verify SHA256 entries in MANIFEST.json against files on disk.
+﻿# Verify SHA256 entries in MANIFEST.json against files on disk.
 param(
   [string]$PackRoot = ""
 )
 
 . "$PSScriptRoot\_env.ps1"
 
+<#
+.SYNOPSIS
+    Resolves the directory that contains MANIFEST.json for verification.
+#>
 function Resolve-PackRoot {
   param([string]$Explicit)
 

@@ -1,10 +1,14 @@
-# Start the agentmemory daemon with home/cwd on the kit root.
+﻿# Start the agentmemory daemon with home/cwd on the kit root.
 param(
   [switch]$VerboseCli
 )
 
 . "$PSScriptRoot\_env.ps1"
 
+<#
+.SYNOPSIS
+    Starts ready-banner.ps1 to poll health and print URLs.
+#>
 function Start-ReadyBannerWatcher {
   $bannerScript = Join-Path $PSScriptRoot "ready-banner.ps1"
   if (-not (Test-Path $bannerScript)) { return }
