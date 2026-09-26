@@ -210,7 +210,59 @@ $script:KitPorts = @(3111, 3112, 3113, 49134)
 
 <#
 .SYNOPSIS
-    Removes stale pid files and stops processes running from KitRoot.
+    Returns the Win32 command line for a process id, or an empty string on failure.
+#>
+function Get-KitProcessCommandLine {
+  param([int]$ProcessId)
+
+  try {
+    $proc = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction Stop
+    return [string]$proc.CommandLine
+  } catch {
+    return ""
+  }
+}
+
+<#
+.SYNOPSIS
+    Returns true when a node command line matches the kit MCP launcher entry points.
+#>
+function Test-IsKitMcpNodeCommandLine {
+  param([string]$CommandLine)
+
+  if ([string]::IsNullOrWhiteSpace($CommandLine)) { return $false }
+  if ($CommandLine -match 'standalone\.mjs') { return $true }
+  if ($CommandLine -match '(?:\\|/)mcp(?:\\|/)bin\.mjs') { return $true }
+  if ($CommandLine -match 'cli\.mjs' -and $CommandLine -match '(?:\s|")mcp(?:\s|"|$)') { return $true }
+  return $false
+}
+
+<#
+.SYNOPSIS
+    Returns true when a kit-scoped process should be stopped during startup cleanup.
+#>
+function Test-ShouldStopKitLeftoverProcess {
+  param(
+    [System.Diagnostics.Process]$Process,
+    [string]$RootPrefix
+  )
+
+  if (-not $Process.Path) { return $false }
+  if (-not $Process.Path.StartsWith($RootPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    return $false
+  }
+
+  $procName = $Process.ProcessName.ToLowerInvariant()
+  if ($procName -eq 'iii') { return $true }
+  if ($procName -ne 'node') { return $false }
+
+  $cmd = Get-KitProcessCommandLine -ProcessId $Process.Id
+  return -not (Test-IsKitMcpNodeCommandLine -CommandLine $cmd)
+}
+
+<#
+.SYNOPSIS
+    Removes stale pid files and stops leftover daemon processes under KitRoot.
 #>
 function Clear-KitRuntimeState {
   Write-KitInfo "Cleaning leftover kit processes / pid files under home\.agentmemory ..."
@@ -224,9 +276,7 @@ function Clear-KitRuntimeState {
 
   $rootPrefix = ($KitRoot.TrimEnd('\') + '\')
   Get-Process -ErrorAction SilentlyContinue |
-    Where-Object {
-      $_.Path -and $_.Path.StartsWith($rootPrefix, [System.StringComparison]::OrdinalIgnoreCase)
-    } |
+    Where-Object { Test-ShouldStopKitLeftoverProcess -Process $_ -RootPrefix $rootPrefix } |
     ForEach-Object {
       Write-KitInfo "  stopping leftover $($_.ProcessName) pid $($_.Id)"
       Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue

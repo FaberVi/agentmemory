@@ -112,7 +112,7 @@ Un avvio fresco **senza** `AGENTMEMORY_DATA_DIR` (CLI nudo) su Windows scrivereb
 
 Il kit **non usa Docker**, anche se Docker Desktop e installato. `AGENTMEMORY_USE_DOCKER=0` e i dati restano in `data\` sulla pen drive.
 
-Porte fisse: **3111**, **3112**, **3113**, **49134**. Prima dell'avvio lo script ferma solo processi residui **di questo kit**, poi controlla le porte. Se sono ancora occupate (altro agentmemory, Docker, altro servizio) esce con **incompatibilità porte** e non si aggancia all'engine gia in ascolto. Libera le porte e rilancia `start.cmd`.
+Porte fisse: **3111**, **3112**, **3113**, **49134**. Prima dell'avvio lo script ferma processi residui del daemon **di questo kit** (`iii.exe` e `node.exe` del CLI), ma **non** interrompe `node.exe` avviato da `mcp-launch.cmd` per Cursor. Poi controlla le porte. Se sono ancora occupate (altro agentmemory, Docker, altro servizio) esce con **incompatibilità porte** e non si aggancia all'engine gia in ascolto. Libera le porte e rilancia `start.cmd`.
 
 ## MCP Cursor
 
