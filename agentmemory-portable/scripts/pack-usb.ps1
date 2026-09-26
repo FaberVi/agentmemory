@@ -88,20 +88,13 @@ foreach ($name in @("package.json", "package-lock.json", "iii-config.yaml", ".en
 $distSrc = Join-Path $RepoDir "dist"
 $distDst = Join-Path $OutputDir "dist"
 New-Item -ItemType Directory -Force -Path $distDst | Out-Null
+Complete-WindowsBuildArtifacts
 Get-ChildItem -LiteralPath $distSrc -Recurse -File | ForEach-Object {
   if (-not $IncludeSourceMaps) {
     if ($_.Extension -eq ".map") { return }
   }
   $rel = $_.FullName.Substring($distSrc.Length).TrimStart('\')
   Copy-FileToStaging -Source $_.FullName -Destination (Join-Path $distDst $rel)
-}
-Complete-WindowsBuildArtifacts
-foreach ($name in @("iii-config.yaml", "iii-config.docker.yaml", "docker-compose.yml", ".env.example")) {
-  $src = Join-Path $RepoDir $name
-  $dst = Join-Path $distDst $name
-  if ((Test-Path $src) -and -not (Test-Path $dst)) {
-    Copy-Item -LiteralPath $src -Destination $dst -Force
-  }
 }
 
 Write-KitInfo "Copying kit scripts"
