@@ -257,6 +257,7 @@ function Test-ShouldStopKitLeftoverProcess {
   if ($procName -ne 'node') { return $false }
 
   $cmd = Get-KitProcessCommandLine -ProcessId $Process.Id
+  if ([string]::IsNullOrWhiteSpace($cmd)) { return $false }
   return -not (Test-IsKitMcpNodeCommandLine -CommandLine $cmd)
 }
 
